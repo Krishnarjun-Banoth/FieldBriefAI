@@ -1,0 +1,14 @@
+.DS_Store
+.build/
+DerivedData/
+*.xcuserstate
+*.xcuserdata/
+FieldBriefAI.xcodeproj/
+FieldBriefAI/Configuration/GoogleService-Info.plist
+**/GoogleService-Info.plist
+.env
+.env.*
+**/*.p8
+**/*.p12
+**/*.mobileprovision
+*.debugtoken

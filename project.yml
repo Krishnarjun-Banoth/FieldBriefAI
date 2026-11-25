@@ -1,0 +1,54 @@
+name: FieldBriefAI
+options:
+  bundleIdPrefix: com.chimja
+  deploymentTarget:
+    iOS: '26.0'
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    IPHONEOS_DEPLOYMENT_TARGET: '26.0'
+    TARGETED_DEVICE_FAMILY: '1'
+packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: 12.13.0
+targets:
+  FieldBriefAI:
+    type: application
+    platform: iOS
+    sources:
+      - path: FieldBriefAI
+    dependencies:
+      - package: Firebase
+        product: FirebaseCore
+      - package: Firebase
+        product: FirebaseAppCheck
+      - package: Firebase
+        product: FirebaseAILogic
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chimja.fieldbriefai
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: 'UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight'
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+  FieldBriefAIUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: FieldBriefAI
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  FieldBriefAI:
+    build:
+      targets:
+        FieldBriefAI: all
+    test:
+      targets:
+        - FieldBriefAIUITests

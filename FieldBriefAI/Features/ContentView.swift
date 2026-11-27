@@ -250,7 +250,7 @@ struct ContentView: View {
             Text("From messy notes to clear next steps.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text("A privacy-conscious hybrid AI prototype for field work and client discussions.")
+            Text("Keep every site visit clear, connected, and ready to share.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -281,8 +281,12 @@ struct ContentView: View {
                 Label("Your field notes", systemImage: "square.and.pencil")
                     .font(.headline)
                 Spacer()
-                Button("Demo notes") { model.notes = DemoNotes.sample }
-                    .font(.caption.weight(.semibold))
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("-showSampleNotes") {
+                    Button("Demo notes") { model.notes = DemoNotes.sample }
+                        .font(.caption.weight(.semibold))
+                }
+                #endif
             }
             TextEditor(text: $model.notes)
                 .focused($editingField, equals: .notes)
@@ -294,7 +298,7 @@ struct ContentView: View {
                 .accessibilityIdentifier("noteEditor")
                 .disabled(model.isGenerating)
             HStack {
-                Text("Use synthetic or approved, sanitized information only.")
+                Text("Only include information you’re authorized to process.")
                 Spacer(minLength: 8)
                 Text("\(model.notes.count)/\(PromptBuilder.maxNoteCharacters)")
                     .monospacedDigit()
@@ -383,6 +387,8 @@ private struct BriefResultView: View {
     let route: InferenceRoute?
     let editingField: FocusState<ContentView.EditingField?>.Binding
     @State private var copied = false
+    @State private var editingSummary = false
+    @State private var summaryDraft = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -411,13 +417,21 @@ private struct BriefResultView: View {
             }
             VStack(alignment: .leading, spacing: 5) {
                 fieldLabel("Summary")
-                TextEditor(text: $brief.summary)
-                    .focused(editingField, equals: .summary)
-                    .frame(minHeight: 98)
-                    .scrollContentBackground(.hidden)
-                    .padding(8)
+                Text(brief.summary)
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
                     .background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
                     .accessibilityIdentifier("briefSummary")
+                Button {
+                    summaryDraft = brief.summary
+                    editingSummary = true
+                } label: {
+                    Label("Edit summary", systemImage: "square.and.pencil")
+                }
+                .font(.caption.weight(.semibold))
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("editBriefSummary")
             }
             simpleList("Decisions", items: brief.decisions, icon: "checkmark.circle")
             if !brief.actions.isEmpty {
@@ -432,6 +446,7 @@ private struct BriefResultView: View {
                             TextField("Action", text: $action.task, axis: .vertical)
                                 .focused(editingField, equals: .action(action.id))
                                 .font(.subheadline.weight(.medium))
+                                .accessibilityIdentifier("briefActionTask-\(action.id.uuidString)")
                             VStack(alignment: .leading, spacing: 10) {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Person responsible").font(.caption.weight(.semibold))
@@ -448,6 +463,15 @@ private struct BriefResultView: View {
                             }
                             .font(.caption)
                             .textFieldStyle(.roundedBorder)
+                            Button(role: .destructive) {
+                                let actionID = action.id
+                                brief.actions.removeAll { $0.id == actionID }
+                            } label: {
+                                Label("Remove action", systemImage: "trash")
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityIdentifier("removeBriefAction-\(action.id.uuidString)")
                         }
                         .padding(11)
                         .background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
@@ -478,6 +502,39 @@ private struct BriefResultView: View {
         .padding(16)
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
         .onChange(of: brief) { copied = false }
+        .sheet(isPresented: $editingSummary) {
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Check the draft against your field notes before saving.")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                    TextEditor(text: $summaryDraft)
+                        .font(.body)
+                        .scrollContentBackground(.hidden)
+                        .padding(10)
+                        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                        .accessibilityLabel("Summary draft")
+                        .accessibilityIdentifier("summaryDraft")
+                }
+                .padding(20)
+                .navigationTitle("Edit summary")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { editingSummary = false }
+                    }
+                    ToolbarItemGroup(placement: .confirmationAction) {
+                        Button("Clear", role: .destructive) { summaryDraft = "" }
+                            .accessibilityIdentifier("clearSummaryDraft")
+                        Button("Save summary") {
+                            brief.summary = summaryDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                            editingSummary = false
+                        }
+                        .disabled(summaryDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .accessibilityIdentifier("saveSummaryDraft")
+                    }
+                }
+            }
+        }
     }
 
     private func fieldLabel(_ name: String) -> some View {

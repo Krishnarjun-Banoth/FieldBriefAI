@@ -10,5 +10,7 @@ if [[ ! -f FieldBriefAI/Configuration/GoogleService-Info.plist ]]; then
   echo 'For Gemini cloud fallback, add GoogleService-Info.plist privately and rerun this script.'
 fi
 xcodegen generate
+mkdir -p FieldBriefAI.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+cp Dependencies/Package.resolved FieldBriefAI.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 open FieldBriefAI.xcodeproj
 echo 'Opened FieldBriefAI.xcodeproj. Configure signing, App Check, and test.'

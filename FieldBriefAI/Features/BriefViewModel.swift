@@ -3,7 +3,7 @@ import Combine
 
 @MainActor
 final class BriefViewModel: ObservableObject {
-    @Published var notes = DemoNotes.sample
+    @Published var notes = ""
     @Published var brief: FieldBrief?
     @Published var route: InferenceRoute?
     @Published var isGenerating = false

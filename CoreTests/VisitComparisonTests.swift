@@ -75,4 +75,17 @@ final class VisitComparisonTests: XCTestCase {
         XCTAssertTrue(prompt.contains("<prior_visit_context>"))
         XCTAssertTrue(prompt.contains("<raw_notes>\nNew notes"))
     }
+    func testNextVisitDeadlineDoesNotHideExplicitCompletion() {
+        let quote = "The intake filter was replaced today and checked."
+        XCTAssertTrue(VisitComparison.explicitCompletion(quote: quote, notes: quote,
+            task: "Replace intake filter before next visit"))
+        XCTAssertFalse(VisitComparison.explicitCompletion(quote: quote, notes: quote,
+            task: "Replace intake filter before pressure testing"))
+        XCTAssertFalse(VisitComparison.explicitCompletion(quote: quote,
+            notes: "The intake filter still needs replacement before next visit.",
+            task: "Replace intake filter before next visit"))
+        XCTAssertFalse(VisitComparison.explicitCompletion(quote: quote, notes: quote,
+            task: "Replace outlet filter before next visit"))
+    }
+
 }

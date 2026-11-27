@@ -155,7 +155,12 @@ public enum VisitComparison {
         guard !matches(#"\b(will|would|could|should|might|may|not|never|waiting|unclear|unconfirmed|pending|planned|tomorrow|needs|still)\b|n['’]t\b|\bnext (week|month|friday|visit)\b|\b(other|different) site\b|close all actions"#, notes),
               matches(#"\b(replaced|repaired|checked|inspected|delivered|submitted|sent|resolved|installed|fixed|completed|finished|done)\b"#, quote) else { return false }
         let ignored: Set<String> = ["the", "a", "an", "to", "of", "for", "and", "by", "with", "check", "inspect", "replace", "repair", "send", "complete", "fix", "review"]
-        let words = task.lowercased().components(separatedBy: CharacterSet.letters.inverted)
+        // Scheduling language is not part of the repaired object's identity. Strip only
+        // this explicit trailing deadline; keep substantive prerequisites in the match.
+        let action = task.replacingOccurrences(
+            of: #"\s+(?:before|by)\s+(?:the\s+)?next\s+visit[.!]?$"#,
+            with: "", options: [.regularExpression, .caseInsensitive])
+        let words = action.lowercased().components(separatedBy: CharacterSet.letters.inverted)
             .filter { $0.count > 2 && !ignored.contains($0) }
         return !words.isEmpty && words.allSatisfy { word in
             matches("\\b" + NSRegularExpression.escapedPattern(for: word) + "\\b", quote)

@@ -6,11 +6,14 @@ final class FieldBriefAIUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.staticTexts["FieldBrief AI"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.textViews["noteEditor"].exists)
+        XCTAssertEqual(app.textViews["noteEditor"].value as? String ?? "", "")
+        XCTAssertFalse(app.buttons["Demo notes"].exists)
         XCTAssertTrue(app.switches["cloudFallbackToggle"].exists)
     }
 
     func testCloudFallbackRequiresConfirmation() {
         let app = XCUIApplication()
+        app.launchArguments.append("-showSampleNotes")
         app.launch()
         let cloudToggle = app.switches["cloudFallbackToggle"]
         XCTAssertEqual(cloudToggle.value as? String, "0")
@@ -23,6 +26,7 @@ final class FieldBriefAIUITests: XCTestCase {
 
     func testOnDeviceGenerationWithSyntheticNotes() throws {
         let app = XCUIApplication()
+        app.launchArguments.append("-showSampleNotes")
         app.launch()
         guard app.staticTexts["On-device model ready"].waitForExistence(timeout: 8) else {
             let status = app.staticTexts.matching(
@@ -70,6 +74,7 @@ final class FieldBriefAIUITests: XCTestCase {
     func testSavedVisitsStayWithTheirSitesAfterRelaunch() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-visitHistoryUITest", UUID().uuidString]
+        app.launchArguments.append("-showSampleNotes")
         app.launch()
         let sites = ["North Warehouse"]
         for (index, site) in [sites[0], sites[0]].enumerated() {
@@ -124,6 +129,7 @@ final class FieldBriefAIUITests: XCTestCase {
         }
 
         app.terminate()
+        app.launchArguments.append("-showSampleNotes")
         app.launch()
         for site in sites {
             app.buttons["sitePicker"].tap()
@@ -154,7 +160,8 @@ final class FieldBriefAIUITests: XCTestCase {
                 app.navigationBars.buttons["Sites"].tap()
                 app.buttons["Done"].tap()
                 app.terminate()
-                app.launch()
+                app.launchArguments.append("-showSampleNotes")
+        app.launch()
                 app.buttons["sitePicker"].tap()
                 app.buttons["savedSite-\(site)"].tap()
                 let eventHistory = app.buttons["Follow-up history"]
@@ -177,6 +184,7 @@ final class FieldBriefAIUITests: XCTestCase {
         let filename = "FieldBrief-" + String(UUID().uuidString.prefix(8))
         app.launchArguments = ["-visitHistoryUITest", UUID().uuidString, "-seedBackupHistory",
                               "-backupFilename", filename]
+        app.launchArguments.append("-showSampleNotes")
         app.launch()
         app.buttons["sitePicker"].tap()
         app.buttons["Export backup"].tap()
@@ -197,6 +205,7 @@ final class FieldBriefAIUITests: XCTestCase {
         save.tap()
         app.terminate()
         app.launchArguments = ["-visitHistoryUITest", UUID().uuidString]
+        app.launchArguments.append("-showSampleNotes")
         app.launch()
         app.buttons["sitePicker"].tap()
         XCTAssertFalse(app.buttons["savedSite-Backup test site"].exists)
@@ -253,7 +262,8 @@ final class FieldBriefAIUITests: XCTestCase {
                 app.launchArguments = ["-visitHistoryUITest", UUID().uuidString,
                                        "-seedComparisonHistory", "-realVisitComparison"]
                 app.launchEnvironment["FIELDBRIEF_COMPARISON_TEST_NOTES"] = notes
-                app.launch()
+                app.launchArguments.append("-showSampleNotes")
+        app.launch()
                 app.buttons["sitePicker"].tap()
                 app.buttons["savedSite-Backup test site"].tap()
                 app.buttons["Use this site"].tap()
@@ -300,6 +310,7 @@ final class FieldBriefAIUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-visitHistoryUITest", UUID().uuidString, "-seedComparisonHistory"]
         if realModel { app.launchArguments.append("-realVisitComparison") }
+        app.launchArguments.append("-showSampleNotes")
         app.launch()
         app.buttons["sitePicker"].tap()
         app.buttons["savedSite-Backup test site"].tap()
@@ -351,13 +362,48 @@ final class FieldBriefAIUITests: XCTestCase {
     }
 
     func testOptInGeminiGeneration() throws {
+        try verifyLiveCloud(forceCloud: true)
+    }
+
+    func testHybridFallbackWhenLocalUnavailable() throws {
+        try verifyLiveCloud(forceCloud: false)
+    }
+
+    func testHybridFallbackAfterRealLocalContextFailure() throws {
+        try verifyLiveCloud(forceCloud: false, contextPressure: true)
+    }
+
+    private func verifyLiveCloud(forceCloud: Bool, contextPressure: Bool = false) throws {
+        guard ProcessInfo.processInfo.environment["FIELDBRIEF_RUN_LIVE_CLOUD"] == "1" else {
+            throw XCTSkip("Live cloud tests require explicit FIELDBRIEF_RUN_LIVE_CLOUD=1 authorization and a funded test project.")
+        }
         let app = XCUIApplication()
-        app.launchArguments = ["-testGeminiCloud"]
+        if forceCloud { app.launchArguments = ["-testGeminiCloud"] }
+        if contextPressure {
+            // Synthetic high-token inventory notes remain within the app's character limit.
+            // This exercises a real local context failure, without substituting a model or error.
+            app.launchArguments = ["-realVisitComparison", "-FIRDebugEnabled"]
+            app.launchEnvironment["FIELDBRIEF_COMPARISON_TEST_NOTES"] =
+                "Site visit. Maya will replace the intake filter next week. Equipment inventory markers: " +
+                String(repeating: "🛠️⚙️🔧🔩", count: 700)
+        }
+        if let token = ProcessInfo.processInfo.environment["FIELDBRIEF_APP_CHECK_DEBUG_TOKEN"] {
+            app.launchEnvironment["FIRAAppCheckDebugToken"] = token
+        }
+        if !contextPressure { app.launchArguments.append("-showSampleNotes") }
         app.launch()
+        if !forceCloud && !contextPressure && app.staticTexts["On-device model ready"].waitForExistence(timeout: 5) {
+            throw XCTSkip("Normal hybrid fallback needs a genuinely unavailable local model; device settings were not changed.")
+        }
+        if contextPressure {
+            guard app.staticTexts["On-device model ready"].waitForExistence(timeout: 5) else {
+                throw XCTSkip("Context-failure fallback test needs a real available primary model.")
+            }
+        }
         let toggle = app.switches["cloudFallbackToggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 10))
         XCTAssertEqual(toggle.value as? String, "0")
-        app.buttons["Demo notes"].tap()
+        if !contextPressure { app.buttons["Demo notes"].tap() }
         app.swipeUp()
         toggle.tap()
         let consent = app.alerts["Allow Gemini cloud fallback?"]
@@ -383,11 +429,137 @@ final class FieldBriefAIUITests: XCTestCase {
             XCTFail("Gemini did not return a brief or an error message.")
             return
         }
-        XCTAssertTrue(app.staticTexts.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Processed with Gemini")
-        ).firstMatch.exists)
+        let cloudBadge = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Processed with Gemini")).firstMatch
+        XCTAssertTrue(cloudBadge.exists)
+        for _ in 0..<10 where !cloudBadge.isHittable { app.swipeUp() }
+        Thread.sleep(forTimeInterval: 3)
+        let evidence = XCTAttachment(screenshot: app.screenshot())
+        evidence.name = forceCloud ? "Live Gemini direct request" : "Live Gemini ordinary hybrid fallback"
+        evidence.lifetime = .keepAlways
+        add(evidence)
         app.terminate()
+        app.launchArguments.append("-showSampleNotes")
         app.launch()
         XCTAssertEqual(app.switches["cloudFallbackToggle"].value as? String, "0")
     }
+    func testRecordedMaintenanceJourney() throws {
+        let app = XCUIApplication()
+        let historyID = UUID().uuidString
+        app.launchArguments = ["-visitHistoryUITest", historyID, "-realVisitComparison", "-prepareRecordingSite"]
+        app.launchEnvironment["FIELDBRIEF_COMPARISON_TEST_NOTES"] = "Maya will replace the intake filter before the next visit. Arjun will inspect the drive belt on Friday. The client approved keeping the current maintenance schedule. The intake filter is clogged."
+        app.launch()
+        func mark(_ name: String) {
+            print("DEMO_SCENE \(name) \(Date().timeIntervalSince1970)")
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = "Demo_" + name; shot.lifetime = .keepAlways; add(shot)
+            Thread.sleep(forTimeInterval: 2)
+        }
+        func reveal(_ item: XCUIElement, up: Bool = true) {
+            for _ in 0..<12 where !item.isHittable { if up { app.swipeUp() } else { app.swipeDown() } }
+            XCTAssertTrue(item.waitForExistence(timeout: 5))
+        }
+        func reviewText(_ identifier: String, value: String) throws {
+            let edit = app.buttons["editBriefSummary"]; reveal(edit)
+            try replaceReviewText(in: app, value: value)
+        }
+        func removeUnsupportedActions(keepCommitments: Bool) {
+            for _ in 0..<10 {
+                let fields = app.textFields.matching(NSPredicate(format: "identifier BEGINSWITH %@", "briefActionTask-")).allElementsBoundByIndex
+                let unsupported = fields.first { field in
+                    let text = (field.value as? String ?? "").lowercased()
+                    return !keepCommitments || !((text.contains("replace") && text.contains("filter")) || (text.contains("inspect") && text.contains("belt")))
+                }
+                guard let field = unsupported else { return }
+                let id = String(field.identifier.dropFirst("briefActionTask-".count))
+                let remove = app.buttons["removeBriefAction-" + id]; reveal(remove); remove.tap()
+            }
+        }
+        func generate() {
+            let button = app.buttons["generateButton"]; reveal(button); button.tap()
+            let title = app.textFields["briefTitle"]
+            let error = app.staticTexts["generationError"]
+            let done = XCTNSPredicateExpectation(predicate: NSPredicate { _,_ in title.exists || error.exists }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [done], timeout: 90), .completed)
+            XCTAssertFalse(error.exists, error.exists ? error.label : "")
+            reveal(title)
+        }
+        XCTAssertFalse(app.buttons["Demo notes"].exists)
+        mark("opening")
+        app.buttons["sitePicker"].tap()
+        let preparedSite = app.buttons.matching(NSPredicate(format: "identifier CONTAINS %@", "North Warehouse")).firstMatch
+        XCTAssertTrue(preparedSite.waitForExistence(timeout: 5)); preparedSite.tap()
+        app.buttons["Use this site"].tap()
+        XCTAssertEqual(app.switches["cloudFallbackToggle"].value as? String, "0")
+        mark("visit_one_notes")
+        generate()
+        XCTAssertTrue(app.staticTexts["Processed on this iPhone"].exists)
+        mark("local_brief")
+        try reviewText("briefSummary", value: "The intake filter is clogged. Maya will replace it before the next visit, and Arjun will inspect the drive belt on Friday. The current maintenance schedule remains approved.")
+        removeUnsupportedActions(keepCommitments: true)
+        mark("reviewed_brief")
+        let save = app.buttons["Save visit"]; reveal(save); save.tap()
+        mark("visit_one_saved")
+        app.terminate()
+        app.launchEnvironment["FIELDBRIEF_COMPARISON_TEST_NOTES"] = "The intake filter was replaced today and checked."
+        app.launch()
+        app.buttons["sitePicker"].tap()
+        let site = app.buttons.matching(NSPredicate(format: "identifier CONTAINS %@", "North Warehouse")).firstMatch
+        XCTAssertTrue(site.waitForExistence(timeout: 5)); site.tap()
+        mark("open_actions")
+        app.buttons["Use this site"].tap()
+        let compare = app.switches["compareVisitToggle"]; reveal(compare); compare.tap()
+        mark("return_visit")
+        generate()
+        try reviewText("briefSummary", value: "The intake filter was replaced today and checked.")
+        removeUnsupportedActions(keepCommitments: false)
+        XCTAssertEqual(app.textFields.matching(NSPredicate(format: "identifier BEGINSWITH %@", "briefActionTask-")).count, 0)
+        let changes = app.staticTexts["Since your last visit"]; reveal(changes, up: false)
+        mark("supported_change")
+        let saveSecond = app.buttons["Save visit"]; reveal(saveSecond); saveSecond.tap()
+        let review = app.buttons["Review completion"].firstMatch; reveal(review, up: false); review.tap()
+        mark("human_confirmation")
+        app.buttons["Confirm completed"].tap()
+        let picker = app.buttons["sitePicker"]; reveal(picker, up: false); picker.tap()
+        app.buttons.matching(NSPredicate(format: "identifier CONTAINS %@", "North Warehouse")).firstMatch.tap()
+        XCTAssertEqual(app.buttons.matching(identifier: "Mark complete").count, 1)
+        XCTAssertEqual(app.buttons.matching(identifier: "Reopen").count, 1)
+        mark("site_history")
+        let latest = app.buttons.matching(identifier: "savedVisitRow").firstMatch; reveal(latest); latest.tap()
+        mark("visit_report")
+        let pdf = app.buttons["shareVisitPDF"]; XCTAssertTrue(pdf.waitForExistence(timeout: 5)); pdf.tap()
+        mark("pdf_share")
+        app.terminate(); app.launch()
+        app.buttons["sitePicker"].tap()
+        mark("backup_restore_search")
+    }
+
+    private func replaceReviewText(in app: XCUIApplication, value: String) throws {
+        app.buttons["editBriefSummary"].tap()
+        let clear = app.buttons["clearSummaryDraft"]
+        XCTAssertTrue(clear.waitForExistence(timeout: 5)); clear.tap()
+        let editor = app.textViews["summaryDraft"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5)); editor.tap()
+        editor.typeText(value)
+        guard editor.value as? String == value else {
+            throw NSError(domain: "Recording", code: 2, userInfo: [NSLocalizedDescriptionKey: "Review text did not replace the draft; review was not saved."])
+        }
+        app.buttons["saveSummaryDraft"].tap()
+        XCTAssertTrue(app.buttons["editBriefSummary"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["briefSummary"].label, value)
+    }
+
+    func testAReviewTextReplacementForRecording() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-visitHistoryUITest", UUID().uuidString, "-showSampleNotes"]
+        app.launch()
+        app.buttons["Demo notes"].tap()
+        let generate = app.buttons["generateButton"]
+        for _ in 0..<8 where !generate.isHittable { app.swipeUp() }
+        generate.tap()
+        let edit = app.buttons["editBriefSummary"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 5))
+        for _ in 0..<8 where !edit.isHittable { app.swipeUp() }
+        try replaceReviewText(in: app, value: "Reviewed maintenance summary.")
+    }
+
 }

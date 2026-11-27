@@ -66,3 +66,46 @@ Eight real on-device scenarios executed with cloud off. Baseline exposed false c
 - 28 core tests pass. Previous failing evaluation is retained for transparency; see COMPARISON_EVALUATION.md for limits.
 
 - Final focused iPhone confirmation-flow regression passed after the fixture was changed to isolated completion-only notes. Confirms save-before-review and completed follow-up visibility. Result: `DerivedData/Logs/Test/Test-FieldBriefAI-2026.11.23_09-38-10-+0530.xcresult`.
+
+## Final local readiness pass — November 27
+
+- Fresh simulator build succeeded using Firebase 12.19.3.
+- Fresh core suite: 28 tests, zero failures. Executed with `swift test --scratch-path /tmp/fieldbrief-core-final-nov27 --build-system native`; scratch path avoids Finder extended metadata that prevented the first attempt's test-bundle signing.
+- Standalone corrupt-history recovery regression passed. Source/doc credential-pattern scan passed.
+- Prior real iPhone evidence remains as recorded above. No new live Gemini success has been established.
+- Sprint 3 supplied account login and assigned project access verified. Firebase onboarding reports existing Cloud billing and would select Blaze. Stopped before continuing under the no-paid-billing restriction; organizer-funded-only approval is pending. No personal billing changed.
+
+### Sprint 3 configuration follow-through
+
+Founder approved using only the organizer-funded project without billing changes. Firebase and the iOS app were provisioned, optional Analytics and AI monitoring disabled, Gemini Developer API setup completed, and AI Logic App Check enforcement is enabled. Founder supplied the downloaded plist; its project and bundle IDs match. It is installed only in the ignored workspace configuration path; original developer-project config remains unchanged. A private debug token is registered for test use.
+
+An earlier targeted device invocation reported TEST SUCCEEDED but its xcresult contained zero selected tests. It is not verification evidence. Corrected selections include the test class; no fresh UI pass is claimed until actual test counts are verified.
+
+### Live backend connectivity — November 27
+
+Using only the organizer's assigned project and its registered private debug token, App Check token exchange returned HTTP 200. A synthetic 32-output-token-limited request through the Firebase AI Logic proxy returned HTTP 200, model `gemini-3.5-flash-lite`, text “connection verified”. This is actual backend generation with App Check, not a mock. It does not establish app-level routing, consent UI, structured-brief quality, or ordinary hybrid fallback; those require separate device/simulator evidence.
+
+### Final iPhone runtime evidence — November 27
+
+Signed build-for-testing succeeded. Verified xcresult summary: four targeted iPhone tests passed, zero failures/skips (80.447 seconds): cloud-consent cancellation, real on-device generation with cloud off, real direct Gemini generation after consent, and isolated save-before-confirm comparison. Result: `/tmp/FieldBrief-Sprint3-Device-Final-Nov27.xcresult`.
+
+Separate ordinary-hybrid stress test passed on iPhone 16. The local model was initially available, the input stayed within the character limit but contained high-token synthetic inventory markers, and the normal hybrid session returned a Gemini brief. No `-testGeminiCloud` flag or substituted processor/error was used. Source SDK falls back on initial primary inference failure. This supports actual error-path fallback under that stress input; it does not verify every failure type or identify the precise primary error from the UI assertion alone. Result: `/tmp/FieldBrief-Sprint3-ContextFallback-Nov27.xcresult`.
+
+The iOS 26.5 simulator's unavailable-model test skipped because its real local model was available; not counted as a fallback success. Earlier simulator startup attempts were interrupted and do not count as regression passes. The original developer-tree tests/config were restored after producing the signed temporary-project test bundle; the workspace plist remains private and ignored.
+
+
+### Recording and review hardening — November 27
+
+- Normal launch now opens with empty notes and no sample-note control. The sample control is opt-in for DEBUG UI tests only.
+- Draft summaries have an explicit Edit summary sheet with Clear, Cancel and Save controls. A targeted iPhone editing check passed on the latest retry; the full real-inference recording is tracked separately.
+- Unsupported draft actions can be removed before saving. Recorded corrected summaries must be labeled as reviewed output, not unaided model accuracy.
+- A narrow completion matcher regression handles “before next visit” deadlines while retaining uncertainty and prerequisite guards. Core suite increased to 29 passing tests in the preceding implementation pass.
+- Invalid DEBUG history identifiers now use isolated throwaway storage. Recording data is kept separate from normal user history. See DEMO_SCRIPT.md for the corrected early-capture incident and privacy controls.
+- The initial resumed capture failed before app checks because iPhone UI automation could not initialize. It is not an app-test pass; the subsequent retry reached and passed the editing check.
+
+
+### Final clean capture retry — November 27 evening
+
+Two selected iPhone UI tests passed with zero failures: the dedicated summary editor and the real on-device two-visit maintenance walkthrough. The latter generated and reviewed both briefs, saved two visits, confirmed the filter resolution, asserted exactly one open follow-up and one completed follow-up, opened the later report/PDF share sheet, and showed backup controls after relaunch. The earlier failed automation initialization is retained as a failed attempt, not silently counted as a pass. Evidence: ignored `Artifacts/demo/final-run/ReviewCaptureRetry.xcresult` and its exported summary.
+
+The normal user archive was copied after capture and compared as parsed JSON with the private baseline: exact match. The app was then launched normally without test arguments. Capture used an isolated UUID history and fictional maintenance data. The text editor probe used a fixture; its recording is excluded from the review video. The main walkthrough used real local inference, and the cloud segment uses the separately verified normal hybrid stress path. Personal share suggestions are redacted; source audio is excluded. All assets remain private pending founder review.

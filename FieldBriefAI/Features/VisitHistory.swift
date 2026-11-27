@@ -70,10 +70,13 @@ final class VisitHistory: ObservableObject {
         var filename = "fieldbrief-visits.json"
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
-        if let flag = arguments.firstIndex(of: "-visitHistoryUITest"),
-           arguments.indices.contains(flag + 1),
-           let testID = UUID(uuidString: arguments[flag + 1]) {
-            filename = "fieldbrief-test-\(testID.uuidString).json"
+        if let flag = arguments.firstIndex(of: "-visitHistoryUITest") {
+            if arguments.indices.contains(flag + 1), let testID = UUID(uuidString: arguments[flag + 1]) {
+                filename = "fieldbrief-test-\(testID.uuidString).json"
+            } else {
+                // Malformed test arguments must never open normal user history.
+                filename = "fieldbrief-invalid-test-\(UUID().uuidString).json"
+            }
         }
         #endif
         file = storageURL ?? URL.applicationSupportDirectory.appending(path: filename)
@@ -90,6 +93,11 @@ final class VisitHistory: ObservableObject {
     #if DEBUG
     func seedBackupTestHistory() {
         let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-visitHistoryUITest"), arguments.contains("-prepareRecordingSite"), sites.isEmpty {
+            // Prepare only an empty fictional site. Every recorded brief uses actual inference.
+            _ = addSite(client: "Northline Maintenance", name: "North Warehouse")
+            return
+        }
         guard arguments.contains("-visitHistoryUITest"), (arguments.contains("-seedBackupHistory") || arguments.contains("-seedComparisonHistory")),
               sites.isEmpty, let site = addSite(client: "", name: "Backup test site") else { return }
         _ = save(FieldBrief(title: "Sample restored visit", summary: "Synthetic visit.",

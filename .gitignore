@@ -12,3 +12,5 @@ FieldBriefAI/Configuration/GoogleService-Info.plist
 **/*.p12
 **/*.mobileprovision
 *.debugtoken
+
+Artifacts/

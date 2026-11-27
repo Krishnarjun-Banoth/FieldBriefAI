@@ -4,19 +4,19 @@ An iPhone prototype for maintenance teams returning to customer sites: turn fiel
 
 **On-device generation is the default. Gemini cloud fallback requires explicit opt-in.** With Firebase configured, local generation uses Apple Foundation Models through Firebase AI Logic.
 
-> Verification status — November 14, 2026: on-device generation and the main visit workflow have been exercised on an iPhone 16. Live Gemini fallback remains unverified. This is a development prototype, not a production release. See the verification table below for the scope of each check.
+> Verification status — November 27, 2026: on-device generation and the main visit workflow have been exercised on an iPhone 16. Live Gemini generation and ordinary hybrid fallback under synthetic high-token input passed on the iPhone using the organizer-funded temporary project. This is a development prototype, not a production release. See the verification table below for the scope of each check.
 
 ## Main workflow
 
 1. Choose or add a site with a client name and site name.
-2. Enter synthetic or approved, sanitized notes, or use **Demo notes**. Input accepts 20–4,000 characters.
-3. Leave **Allow cloud fallback** off to generate locally. Review the processing-location banner and edit the brief title, summary, action owners, and due dates.
+2. Enter fictional or approved, sanitized notes. The normal app starts blank; sample notes are available only in explicitly enabled DEBUG test runs. Input accepts 20–4,000 characters.
+3. Leave **Allow cloud fallback** off to generate locally. Review the processing-location banner and edit the brief title, use **Edit summary**, correct action owners/dates, and remove unsupported draft actions.
 4. Tap **Save Visit** to retain the brief under the selected site. An existing saved draft can be updated; generating a new brief starts a new visit draft.
 5. Return to the site to see visit history and follow-ups. Mark a follow-up complete, optionally add a completion note, and optionally link it to a later visit at that site.
 6. Open a saved visit to read its report and use **Share PDF**. The editor also supports copying or sharing the brief as Markdown text.
 7. In **Sites → Backup and restore**, export a backup to Files. Importing a backup previews site and visit counts, then requires confirmation before replacing the current history. Restore replaces history; it does not merge it.
 
-The AI currently processes the latest notes only. It does not compare visits, automatically resolve follow-ups, or infer updates from site history. Completion links are chosen by the user.
+Optional cross-visit comparison uses the selected site’s latest summary and up to eight open follow-ups. Completion candidates combine model proposals with conservative literal matching; each requires a saved visit and explicit user confirmation. Earlier reports are preserved.
 
 ## Inference and consent
 
@@ -27,7 +27,7 @@ The runtime integration is in `FieldBriefAI/AI/FirebaseHybridNoteService.swift`:
 - **Cloud on:** after the consent dialog is accepted, a Firebase hybrid session uses Apple Foundation Models as primary and Gemini 3.5 Flash-Lite as secondary. Firebase configuration and usable cloud quota are required.
 - **Local model unavailable, cloud off:** generation is blocked with availability information; it does not silently send notes to the cloud.
 
-Cloud fallback defaults to off on a fresh app launch. The hybrid result banner uses the response's model version to identify its source. Enabling fallback does not guarantee that a particular request uses Gemini. The cloud route and actual fallback behavior still need successful end-to-end verification.
+Cloud fallback defaults to off on a fresh app launch. The hybrid result banner uses the response's model version to identify its source. Enabling fallback does not guarantee that a particular request uses Gemini. The cloud route and ordinary hybrid fallback passed the November 27 targeted iPhone checks. This does not establish broad model accuracy or access after the temporary project expires.
 
 Debug-only UI fixtures generate synthetic briefs for persistence tests. They are not evidence of real AI output quality and are excluded from Release builds. The debug cloud-only test mode still requires consent and is separate from testing genuine hybrid fallback.
 
@@ -47,7 +47,7 @@ Debug-only UI fixtures generate synthetic briefs for persistence tests. They are
 - A Mac with Xcode supporting the iOS 26 deployment target. Development builds have used **Xcode 27.1 RC**; the device workflow was tested on **iPhone 16 with iOS 26.5**.
 - An Apple Intelligence-compatible physical device with Apple Intelligence enabled and its model ready for real on-device inference. Simulator UI tests do not establish physical-device inference behavior.
 - XcodeGen to generate the Xcode project from `project.yml`.
-- Swift Package Manager dependencies: `project.yml` specifies Firebase Apple SDK from version 12.13.0; the development checkout used 12.19.3.
+- Swift Package Manager dependencies: `project.yml` pins Firebase Apple SDK 12.19.3, matching the verified development checkout.
 - For Firebase integration, your own Firebase project, Gemini Developer API setup, App Check registration, and an iOS app matching `com.chimja.fieldbriefai` (or consistently change the bundle ID).
 
 ## Local setup
@@ -86,7 +86,7 @@ For UI tests, generate the project and choose an available destination in Xcode'
 
 | Area | Evidence and remaining limits |
 |---|---|
-| Core validation, parsing, Markdown, inference policy | 19 tests passed on November 14, 2026, including preservation of seven actions through parsing and export. |
+| Core validation, parsing, comparison, Markdown, inference policy | Latest suite: 29 tests passed; includes rejection of unsupported evidence and a completion-deadline regression. |
 | Firebase-backed on-device generation | Real iPhone generation verified with cloud fallback off; manual and automated checks. No broad output-quality benchmark yet. |
 | Sites and saved visits | Physical-device automation exercised saving and relaunching isolated sample histories. |
 | Follow-up completion and later-visit link | Physical-device test verified the note in the linked visit's in-app report after relaunch; the original report remained unchanged in that tested flow. |
@@ -94,25 +94,26 @@ For UI tests, generate the project and choose an available destination in Xcode'
 | Backup through Files | Empty and populated sample backups exported and restored into fresh isolated history on the same iPhone. |
 | Corrupt-history recovery | New source fix passed the isolated macOS regression. Not yet installed or tested through the iPhone UI. |
 | Different-device migration | Not verified. The simulator Files attempt did not complete, and a second physical iPhone was unavailable. |
-| Gemini and genuine hybrid fallback | Still unverified end to end on the iPhone; quota/access remains an open item. |
+| Gemini and genuine hybrid fallback | November 27: real Gemini after consent passed on iPhone 16; ordinary hybrid session returned Gemini under synthetic high-token input with an available local model. No forced-cloud flag in the latter test. App Check enforced with private debug attestation. |
 | Release App Attest | Provider selected in code; Release runtime verification pending. |
 
 These are scoped checks, not a claim that every feature or edge case is validated. Persistence fixtures do not evaluate AI accuracy.
 
 ## Known gaps and next work
 
-- Follow-up completion/reopening events now persist, including legacy completion migration. The new source checks cover relaunch and backup/restore; the updated UI still needs physical-device verification. Reports are not fully immutable audit records because saved briefs can still be edited.
-- The prompt no longer caps action arrays at five. Evaluate real-model extraction quality; parser tests do not prove that a model captures every commitment.
-- Add evidence-backed comparisons between visits with user-confirmed action updates.
-- Verify live hybrid fallback and a sustainable no-cost judging setup; temporary quota alone does not establish ongoing availability.
-- Validate a clean developer setup and Release signing/attestation before distribution.
-- Test migration to a second physical device when one is available.
+- Models can invent or omit facts and commitments. Review every draft. The small application-level comparison evaluation is not a broad model-accuracy benchmark.
+- Reports are not immutable audit records: saved briefs can be edited, while completion/reopening events preserve their history.
+- No team sync, automatic cloud history backup, field-user impact study, TestFlight distribution or release-attestation verification is claimed.
+- Different-device migration remains unverified.
+- Organizer-funded Sprint 3 projects are deleted after November 30. On November 27 the organizer confirmed they cannot be extended and there is no separate judge arrangement. Independent judge cloud access is not certified. No personal billing is enabled by this project.
 
-## Submission preparation
+## Demo and judge setup
 
-Registration and a Devpost draft exist. The public source repository, final demonstration video, judge access arrangement, and final submission are not complete. Publishing, uploading, spending, and submitting require separate founder approval.
+[Watch the approved English demonstration (2:44 on YouTube)](https://youtu.be/dhCNSl4RlGE).
 
-`Docs/SUBMISSION_CHECKLIST.md` and `Docs/DEMO_SCRIPT.md` are planning drafts and need reconciliation with the current implementation before use. Submission claims should follow the verification table above and distinguish real inference from test fixtures.
+The video shows real on-device inference with reviewed output and a separate genuine Firebase AI Logic hybrid stress case. It uses fictional maintenance data, synthetic narration and edited navigation/waits. Temporary project credentials are never distributed. The source and local Apple path remain available independently of that temporary backend; the direct Apple path without Firebase config is not Firebase runtime evidence.
+
+See [judge setup and limitations](Docs/JUDGE_ACCESS.md), [dependency versions/licenses](Docs/DEPENDENCIES.md), and [test evidence](Docs/BUILD_STATUS.md). The founder approved public source/video publication and contest submission on November 27. Devpost submission status is recorded in the checklist once its confirmation is observed.
 
 ## References
 
